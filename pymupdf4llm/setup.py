@@ -16,7 +16,7 @@ classifiers = [
 requires = ["pymupdf>=1.24.2"]
 
 setuptools.setup(
-    name="pymupdf4llm",
+    name="pymupdf4llm-kuberlab",
     version="0.0.5",
     author="Artifex",
     author_email="support@artifex.com",
