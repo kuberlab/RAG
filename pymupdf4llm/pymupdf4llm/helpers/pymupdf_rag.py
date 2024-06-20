@@ -123,6 +123,19 @@ class IdentifyHeaders:
         return hdr_id
 
 
+def _validate_margins(margins):
+    if hasattr(margins, "__float__"):
+        margins = [margins] * 4
+    if len(margins) == 2:
+        margins = (0, margins[0], 0, margins[1])
+    if len(margins) != 4:
+        raise ValueError("margins must have length 2 or 4 or be a number.")
+    elif not all([hasattr(m, "__float__") for m in margins]):
+        raise ValueError("margin values must be numbers")
+
+    return margins
+
+
 def to_markdown(
     doc: str,
     *,
@@ -131,6 +144,8 @@ def to_markdown(
     write_images: bool = False,
     page_chunks: bool = False,
     margins=(0, 50, 0, 50),
+    image_margins=(0, 50, 0, 50),
+    include_page_breaks: bool = True,
 ) -> str:
     """Process the document and return the text of its selected pages."""
 
@@ -140,14 +155,8 @@ def to_markdown(
     if pages is None:  # use all pages if no selection given
         pages = list(range(doc.page_count))
 
-    if hasattr(margins, "__float__"):
-        margins = [margins] * 4
-    if len(margins) == 2:
-        margins = (0, margins[0], 0, margins[1])
-    if len(margins) != 4:
-        raise ValueError("margins must have length 2 or 4 or be a number.")
-    elif not all([hasattr(m, "__float__") for m in margins]):
-        raise ValueError("margin values must be numbers")
+    margins = _validate_margins(margins)
+    image_margins = _validate_margins(image_margins)
 
     # If "hdr_info" is not an object having method "get_header_id", scan the
     # document and use font sizes as header level indicators.
@@ -186,6 +195,7 @@ def to_markdown(
         page: fitz.Page,
         textpage: fitz.TextPage,
         clip: fitz.Rect,
+        image_clip: fitz.Rect,
         tabs=None,
         tab_rects: dict = None,
         img_rects: dict = None,
@@ -208,6 +218,8 @@ def to_markdown(
         """
         if clip is None:
             clip = textpage.rect
+        if image_clip is None:
+            image_clip = textpage.rect
         out_string = ""
 
         # This is a list of tuples (linerect, spanlist)
@@ -245,7 +257,7 @@ def to_markdown(
                 [
                     j
                     for j in img_rects.items()
-                    if j[1].y1 <= lrect.y0 and not (j[1] & clip).is_empty
+                    if (j[1].y1 <= lrect.y0 or j[1].intersects(lrect)) and not (j[1] & image_clip).is_empty
                 ],
                 key=lambda j: (j[1].y1, j[1].x0),
             ):
@@ -413,7 +425,7 @@ def to_markdown(
         meta["page"] = pno + 1
         return meta
 
-    def get_page_output(doc, pno, margins, textflags):
+    def get_page_output(doc, pno, margins, image_margins, textflags):
         """Process one page.
 
         Args:
@@ -428,14 +440,16 @@ def to_markdown(
         page = doc[pno]
         md_string = ""
         left, top, right, bottom = margins
+        img_left, img_top, img_right, img_bottom = image_margins
         clip = page.rect + (left, top, -right, -bottom)
+        image_clip = page.rect + (img_left, img_top, -img_right, -img_bottom)
         # extract all links on page
         links = [l for l in page.get_links() if l["kind"] == 2]
 
         # make a TextPage for all later extractions
         textpage = page.get_textpage(flags=textflags, clip=clip)
 
-        img_info = [img for img in page.get_image_info() if img["bbox"] in clip]
+        img_info = [img for img in page.get_image_info() if img["bbox"] in image_clip]
         images = img_info[:]
         tables = []
         graphics = []
@@ -517,6 +531,7 @@ def to_markdown(
                 page,
                 textpage,
                 text_rect,
+                image_clip,
                 tabs=tabs,
                 tab_rects=tab_rects,
                 img_rects=vg_clusters,
@@ -526,7 +541,8 @@ def to_markdown(
         # write any remaining tables and images
         md_string += output_tables(tabs, None, tab_rects)
         md_string += output_images(None, tab_rects, None)
-        md_string += "\n-----\n\n"
+        if include_page_breaks:
+            md_string += "\n-----\n\n"
         while md_string.startswith("\n"):
             md_string = md_string[1:]
         return md_string, images, tables, graphics
@@ -542,7 +558,7 @@ def to_markdown(
     for pno in pages:
 
         page_output, images, tables, graphics = get_page_output(
-            doc, pno, margins, textflags
+            doc, pno, margins, image_margins, textflags
         )
         if page_chunks is False:
             document_output += page_output
