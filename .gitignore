@@ -4,3 +4,4 @@ dist
 pymupdf4llm.egg-info/
 pymupdf4llm_kuberlab.egg-info/
 .idea/
+__pycache__
