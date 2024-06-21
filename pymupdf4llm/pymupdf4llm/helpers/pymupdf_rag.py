@@ -146,6 +146,7 @@ def to_markdown(
     margins=(0, 50, 0, 50),
     image_margins=(0, 50, 0, 50),
     include_page_breaks: bool = True,
+    image_dpi: int = None,
 ) -> str:
     """Process the document and return the text of its selected pages."""
 
@@ -180,12 +181,12 @@ def to_markdown(
             text = f'[{span["text"].strip()}]({link["uri"]})'
             return text
 
-    def save_image(page, rect, i):
+    def save_image(page, rect, i, dpi=None):
         """Optionally render the rect part of a page."""
         filename = page.parent.name.replace("\\", "/")
         image_path = f"{filename}-{page.number}-{i}.png"
         if write_images is True:
-            pix = page.get_pixmap(clip=rect)
+            pix = page.get_pixmap(clip=rect, dpi=dpi)
             pix.save(image_path)
             del pix
             return os.path.basename(image_path)
@@ -261,7 +262,7 @@ def to_markdown(
                 ],
                 key=lambda j: (j[1].y1, j[1].x0),
             ):
-                pathname = save_image(page, img_rect, i)
+                pathname = save_image(page, img_rect, i, dpi=image_dpi)
                 if pathname:
                     out_string += GRAPHICS_TEXT % (pathname, pathname)
                 del img_rects[i]
@@ -402,7 +403,7 @@ def to_markdown(
                 [j for j in img_rects.items() if j[1].y1 <= text_rect.y0],
                 key=lambda j: (j[1].y1, j[1].x0),
             ):
-                pathname = save_image(page, img_rect, i)
+                pathname = save_image(page, img_rect, i, dpi=image_dpi)
                 if pathname:
                     this_md += GRAPHICS_TEXT % (pathname, pathname)
                 del img_rects[i]  # do not touch this image twice
@@ -412,7 +413,7 @@ def to_markdown(
                 img_rects.items(),
                 key=lambda j: (j[1].y1, j[1].x0),
             ):
-                pathname = save_image(page, img_rect, i)
+                pathname = save_image(page, img_rect, i, dpi=image_dpi)
                 if pathname:
                     this_md += GRAPHICS_TEXT % (pathname, pathname)
                 del img_rects[i]  # do not touch this image twice

@@ -1,6 +1,8 @@
 #!/bin/bash
 
-rm -rf dist/*
-python pymupdf4llm/setup.py bdist_wheel
-twine upload dist/*
+pushd pymupdf4llm
+  rm -rf dist/*
+  python setup.py bdist_wheel
+  twine upload dist/*
+popd
 
