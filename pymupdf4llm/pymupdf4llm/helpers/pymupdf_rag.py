@@ -49,7 +49,7 @@ bullet = (
     chr(8226),
     chr(9679),
 )
-GRAPHICS_TEXT = "\n![](%s)\n"
+GRAPHICS_TEXT = "\n![%s](%s)\n"
 
 
 class IdentifyHeaders:
@@ -230,7 +230,9 @@ def to_markdown(
     hdr_info=None,
     write_images=False,
     image_path="",
+    image_basename=False,
     image_format="png",
+    image_min_relative_size=0.02,
     force_text=True,
     page_chunks=False,
     margins=(0, 50, 0, 50),
@@ -328,7 +330,7 @@ def to_markdown(
 
         We will always ignore images with an edge smaller than 5%
         of the corresponding page edge."""
-        if rect.width < page.rect.width * 0.05 or rect.height < page.rect.height * 0.05:
+        if rect.width < page.rect.width * image_min_relative_size or rect.height < page.rect.height * image_min_relative_size:
             return ""
         filename = os.path.basename(page.parent.name)
         image_filename = os.path.join(
@@ -417,7 +419,9 @@ def to_markdown(
             ):
                 pathname = save_image(page, temp_rect, i)
                 if pathname:
-                    out_string += GRAPHICS_TEXT % pathname
+                    if image_basename:
+                        pathname = os.path.basename(pathname)
+                    out_string += GRAPHICS_TEXT % (pathname, pathname)
 
                 # recursive invocation
                 if force_text:
@@ -425,6 +429,7 @@ def to_markdown(
                         page,
                         textpage,
                         clip=temp_rect,
+                        image_clip=temp_rect,
                         tabs=None,
                         tab_rects={},
                         img_rects={},
@@ -574,12 +579,15 @@ def to_markdown(
             ):
                 pathname = save_image(page, img_rect, i)
                 if pathname:
-                    this_md += GRAPHICS_TEXT % pathname
+                    if image_basename:
+                        pathname = os.path.basename(pathname)
+                    this_md += GRAPHICS_TEXT % (pathname, pathname)
                 if force_text:
                     img_txt = write_text(
                         page,
                         textpage,
                         clip=img_rect,
+                        image_clip=img_rect,
                         tabs=None,
                         tab_rects={},  # we have no tables here
                         img_rects={},  # we have no other images here
@@ -598,12 +606,15 @@ def to_markdown(
             ):
                 pathname = save_image(page, img_rect, i)
                 if pathname:
-                    this_md += GRAPHICS_TEXT % pathname
+                    if image_basename:
+                        pathname = os.path.basename(pathname)
+                    this_md += GRAPHICS_TEXT % (pathname, pathname)
                 if force_text:
                     img_txt = write_text(
                         page,
                         textpage,
                         clip=img_rect,
+                        image_clip=img_rect,
                         tabs=None,
                         tab_rects={},  # we have no tables here
                         img_rects={},  # we have no other images here
