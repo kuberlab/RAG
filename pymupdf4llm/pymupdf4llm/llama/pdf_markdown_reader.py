@@ -1,13 +1,8 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
-try:
-    import pymupdf as fitz  # available with v1.24.3
-except ImportError:
-    import fitz
-
-from fitz import Document as FitzDocument
-
+import pymupdf
+from pymupdf import Document as FitzDocument
 from pymupdf4llm import IdentifyHeaders, to_markdown
 
 try:
@@ -16,7 +11,7 @@ try:
 
     print("Successfully imported LlamaIndex")
 except ImportError:
-    raise NotImplementedError("Please install required 'llama_index'.")
+    raise NotImplementedError("Please install 'llama_index'.")
 
 
 class PDFMarkdownReader(BaseReader):
@@ -60,7 +55,7 @@ class PDFMarkdownReader(BaseReader):
         # extract text header information
         hdr_info = IdentifyHeaders(file_path)
 
-        doc: FitzDocument = fitz.open(file_path)
+        doc: FitzDocument = pymupdf.open(file_path)
         docs = []
 
         for page in doc:

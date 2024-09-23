@@ -15,10 +15,7 @@ License GNU Affero GPL 3.0
 import string
 import sys
 
-try:
-    import pymupdf as fitz  # available with v1.24.3
-except ImportError:
-    import fitz
+import pymupdf
 
 WHITE = set(string.whitespace)
 
@@ -37,7 +34,8 @@ def get_raw_lines(textpage, clip=None, tolerance=3):
     Result is a sorted list of line objects that consist of the recomputed line
     boundary box and the sorted list of spans in that line.
 
-    This result can then easily be converted e.g. to plain or markdown text.
+    This result can then easily be converted e.g. to plain text and other
+    formats like Markdown or JSON.
 
     Args:
         textpage: (mandatory) TextPage object
@@ -48,7 +46,7 @@ def get_raw_lines(textpage, clip=None, tolerance=3):
 
     Returns:
         A sorted list of items (rect, [spans]), each representing one line. The
-        spans are sorted left to right, Span dictionaries have been changed:
+        spans are sorted left to right. Span dictionaries have been changed:
         - "bbox" has been converted to a Rect object
         - "line" (new) the line number in TextPage.extractDICT
         - "block" (new) the block number in TextPage.extractDICT
@@ -69,7 +67,9 @@ def get_raw_lines(textpage, clip=None, tolerance=3):
         Returns:
             A list of sorted, and potentially cleaned-up spans
         """
-        line.sort(key=lambda s: s["bbox"].x0)  # sort left to right
+        # sort ascending horizontally
+        line.sort(key=lambda s: s["bbox"].x0)
+        # join spans, delete duplicates
         for i in range(len(line) - 1, 0, -1):  # iterate back to front
             s0 = line[i - 1]
             s1 = line[i]
@@ -78,25 +78,31 @@ def get_raw_lines(textpage, clip=None, tolerance=3):
             delta = s1["size"] * 0.1
             if s0["bbox"].x1 + delta < s1["bbox"].x0:
                 continue  # all good: no joining neded
+
+            # We need to join bbox and text of two consecutive spans
+            # On occasion, spans may also be duplicated.
+            if s0["text"] != s1["text"] or s0["bbox"] != s1["bbox"]:
+                s0["text"] += s1["text"]
             s0["bbox"] |= s1["bbox"]  # join boundary boxes
-            s0["text"] += s1["text"]  # join the text
             del line[i]  # delete the joined-in span
             line[i - 1] = s0  # update the span
         return line
 
-    if clip is None:  # use TextPage if not provided
+    if clip is None:  # use TextPage rect if not provided
         clip = textpage.rect
     # extract text blocks - if bbox is not empty
     blocks = [
         b
         for b in textpage.extractDICT()["blocks"]
-        if b["type"] == 0 and not fitz.Rect(b["bbox"]).is_empty
+        if b["type"] == 0 and not pymupdf.Rect(b["bbox"]).is_empty
     ]
     spans = []  # all spans in TextPage here
     for bno, b in enumerate(blocks):  # the numbered blocks
         for lno, line in enumerate(b["lines"]):  # the numbered lines
+            if abs(1 - line["dir"][0]) > 1e-3:  # only accept horizontal text
+                continue
             for sno, s in enumerate(line["spans"]):  # the numered spans
-                sbbox = fitz.Rect(s["bbox"])  # span bbox as a Rect
+                sbbox = pymupdf.Rect(s["bbox"])  # span bbox as a Rect
                 mpoint = (sbbox.tl + sbbox.br) / 2  # middle point
                 if mpoint not in clip:
                     continue
@@ -164,16 +170,16 @@ def get_text_lines(
         cases of text replaced by way of redaction annotations.
 
     Args:
-        page: (fitz.Page)
+        page: (pymupdf.Page)
         textpage: (TextPage) if None a temporary one is created.
         clip: (rect-like) only consider spans inside this area
         sep: (str) use this string when joining multiple MuPDF lines.
     Returns:
         String of plain text in reading sequence.
     """
-    textflags = fitz.TEXT_MEDIABOX_CLIP
+    textflags = pymupdf.TEXT_MEDIABOX_CLIP
     page.remove_rotation()
-    prect = page.rect if not clip else fitz.Rect(clip)  # area to consider
+    prect = page.rect if not clip else pymupdf.Rect(clip)  # area to consider
 
     xsep = sep if sep == "|" else ""
 
@@ -254,7 +260,7 @@ if __name__ == "__main__":
     import pathlib
 
     filename = sys.argv[1]
-    doc = fitz.open(filename)
+    doc = pymupdf.open(filename)
     text = ""
     for page in doc:
         text += get_text_lines(page, sep=" ") + "\n" + chr(12) + "\n"
