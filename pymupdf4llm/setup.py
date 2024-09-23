@@ -17,7 +17,7 @@ requires = ["pymupdf>=1.24.2"]
 
 setuptools.setup(
     name="pymupdf4llm-kuberlab",
-    version="0.0.11",
+    version="0.0.12",
     author="Artifex",
     author_email="support@artifex.com",
     description="PyMuPDF Utilities for LLM/RAG",
