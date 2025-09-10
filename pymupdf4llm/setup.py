@@ -1,6 +1,7 @@
 import os
 
 import setuptools
+from pathlib import Path
 
 setup_py_cwd = os.path.dirname(__file__)
 with open(os.path.join(setup_py_cwd, "README.md"), encoding="utf-8") as f:
