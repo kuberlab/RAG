@@ -1029,7 +1029,9 @@ def to_markdown(
                 # output full page image
                 name = save_image(parms, parms.clip, "full")
                 if name:
-                    parms.md_string += GRAPHICS_TEXT % name
+                    if image_basename:
+                        name = os.path.basename(name)
+                    parms.md_string += GRAPHICS_TEXT % (name, name)
 
         img_info = img_info[:30]  # only accept the largest up to 30 images
         # run from back to front (= small to large)
